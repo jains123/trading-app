@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCw, Wifi, WifiOff, Clock } from 'lucide-react';
+import { RefreshCw, Wifi, WifiOff, Clock, SlidersHorizontal, X } from 'lucide-react';
 import type { AssetData, NotificationSettings, SignalHistoryEntry, SignalType } from '@/lib/types';
 import AssetCard from './AssetCard';
 import NotificationPanel from './NotificationPanel';
@@ -68,6 +68,7 @@ export default function Dashboard() {
     ['rsi'],
   );
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchAssets = useCallback(
@@ -354,31 +355,98 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Sidebar — 1 col */}
-          <div className="space-y-4">
-            <NotificationPanel settings={notifSettings} onChange={setNotifSettings} />
-            <StrategyPanel
+          {/* Sidebar — desktop only */}
+          <div className="hidden xl:block space-y-4">
+            <SidebarContent
+              notifSettings={notifSettings}
+              setNotifSettings={setNotifSettings}
               enabledStrategies={enabledStrategies}
-              onChange={setEnabledStrategies}
+              setEnabledStrategies={setEnabledStrategies}
+              assets={assets}
+              loading={loading}
             />
-            {!loading && assets.length > 0 && <BacktestPanel assets={assets} />}
-
-            {/* Poll info */}
-            <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-2">
-              <h2 className="text-xs font-semibold text-[#8b949e] uppercase tracking-wider">Info</h2>
-              <div className="space-y-1.5 text-xs text-[#8b949e]">
-                <p>Auto-refreshes every <span className="text-[#e6edf3]">60s</span></p>
-                <p>RSI calculated on <span className="text-[#e6edf3]">1h candles</span></p>
-                <p>14-period Wilder&apos;s smoothed RSI</p>
-                <p className="pt-1 border-t border-[#30363d]">
-                  Data via <span className="text-[#58a6ff]">Yahoo Finance</span>
-                </p>
-                <p>Notifications via <span className="text-[#58a6ff]">ntfy.sh</span></p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile FAB */}
+      <button
+        onClick={() => setDrawerOpen(true)}
+        className="xl:hidden fixed bottom-5 right-5 z-40 w-12 h-12 bg-[#58a6ff] rounded-full flex items-center justify-center shadow-lg shadow-[#58a6ff]/20 active:scale-95 transition-transform"
+      >
+        <SlidersHorizontal size={20} className="text-[#0d1117]" />
+      </button>
+
+      {/* Mobile drawer overlay */}
+      {drawerOpen && (
+        <div className="xl:hidden fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <div className="relative w-[85%] max-w-sm bg-[#0d1117] h-full overflow-y-auto p-4 space-y-4 animate-slide-in">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-[#e6edf3]">Settings & Tools</h2>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-[#21262d] transition-colors"
+              >
+                <X size={18} className="text-[#8b949e]" />
+              </button>
+            </div>
+            <SidebarContent
+              notifSettings={notifSettings}
+              setNotifSettings={setNotifSettings}
+              enabledStrategies={enabledStrategies}
+              setEnabledStrategies={setEnabledStrategies}
+              assets={assets}
+              loading={loading}
+            />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/* Shared sidebar content — used in both desktop column and mobile drawer */
+function SidebarContent({
+  notifSettings,
+  setNotifSettings,
+  enabledStrategies,
+  setEnabledStrategies,
+  assets,
+  loading,
+}: {
+  notifSettings: NotificationSettings;
+  setNotifSettings: (v: NotificationSettings) => void;
+  enabledStrategies: string[];
+  setEnabledStrategies: (v: string[]) => void;
+  assets: AssetData[];
+  loading: boolean;
+}) {
+  return (
+    <>
+      <NotificationPanel settings={notifSettings} onChange={setNotifSettings} />
+      <StrategyPanel
+        enabledStrategies={enabledStrategies}
+        onChange={setEnabledStrategies}
+      />
+      {!loading && assets.length > 0 && <BacktestPanel assets={assets} />}
+
+      {/* Poll info */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-2">
+        <h2 className="text-xs font-semibold text-[#8b949e] uppercase tracking-wider">Info</h2>
+        <div className="space-y-1.5 text-xs text-[#8b949e]">
+          <p>Auto-refreshes every <span className="text-[#e6edf3]">60s</span></p>
+          <p>RSI calculated on <span className="text-[#e6edf3]">daily candles</span></p>
+          <p>14-period Wilder&apos;s smoothed RSI</p>
+          <p className="pt-1 border-t border-[#30363d]">
+            Data via <span className="text-[#58a6ff]">Stooq</span> &amp; <span className="text-[#58a6ff]">CoinGecko</span>
+          </p>
+          <p>Notifications via <span className="text-[#58a6ff]">ntfy.sh</span></p>
+        </div>
+      </div>
+    </>
   );
 }
