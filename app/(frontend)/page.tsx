@@ -26,6 +26,13 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Zap,
 };
 
+const TICKER_SYMBOLS = [
+  'AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'AMZN', 'META', 'BTC', 'ETH', 'SOL',
+  'BNB', 'XRP', 'AMD', 'NFLX', 'DIS', 'NKE', 'JPM', 'V', 'MA', 'PYPL',
+  'BA', 'COST', 'WMT', 'PFE', 'KO', 'PEP', 'INTC', 'CRM', 'ADBE', 'ORCL',
+  'GS', 'HD', 'MCD', 'SBUX', 'UNH', 'XOM', 'COIN', 'DOGE', 'AVAX', 'DOT',
+];
+
 /* ---------- Default content (used before CMS is populated) ---------- */
 
 const DEFAULTS = {
@@ -126,6 +133,12 @@ export default async function LandingPage() {
             <span className="font-bold text-sm">Trading Signals</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link
+              href="/strategies"
+              className="text-xs text-[#8b949e] hover:text-[#e6edf3] transition-colors hidden sm:block"
+            >
+              Strategies
+            </Link>
             <a
               href="#pricing"
               className="text-xs text-[#8b949e] hover:text-[#e6edf3] transition-colors hidden sm:block"
@@ -182,14 +195,19 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Asset ticker preview */}
-      <section className="py-8 border-y border-[#30363d]/50">
-        <div className="max-w-5xl mx-auto px-4 flex flex-wrap justify-center gap-6 text-xs text-[#8b949e]">
-          {['AAPL', 'NVDA', 'TSLA', 'MSFT', 'GOOGL', 'BTC', 'ETH', 'SOL'].map((s) => (
-            <span key={s} className="font-mono font-semibold text-[#e6edf3]/60">
-              {s}
-            </span>
-          ))}
+      {/* Ticker tape */}
+      <section className="border-y border-[#30363d]/50 overflow-hidden">
+        <div className="ticker-wrap py-3">
+          <div className="ticker-track">
+            {[...TICKER_SYMBOLS, ...TICKER_SYMBOLS].map((s, i) => (
+              <span
+                key={`${s}-${i}`}
+                className="inline-block px-4 font-mono text-xs font-semibold text-[#e6edf3]/40 whitespace-nowrap"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
