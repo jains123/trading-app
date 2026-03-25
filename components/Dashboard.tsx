@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCw, Wifi, WifiOff, Clock, SlidersHorizontal, X } from 'lucide-react';
+import { RefreshCw, Wifi, WifiOff, Clock, SlidersHorizontal, X, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import type { AssetData, NotificationSettings, SignalHistoryEntry, SignalType } from '@/lib/types';
 import AssetCard from './AssetCard';
 import NotificationPanel from './NotificationPanel';
@@ -69,7 +70,14 @@ export default function Dashboard() {
   );
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const router = useRouter();
   const abortRef = useRef<AbortController | null>(null);
+
+  async function handleLogout() {
+    await fetch('/api/users/logout', { method: 'POST', credentials: 'include' });
+    router.push('/login');
+    router.refresh();
+  }
 
   const fetchAssets = useCallback(
     async (manual = false) => {
@@ -240,6 +248,13 @@ export default function Dashboard() {
             >
               <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
               Refresh
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#21262d] border border-[#30363d] rounded-lg hover:bg-[#f85149]/20 hover:border-[#f85149]/30 hover:text-[#f85149] transition-colors"
+              title="Sign out"
+            >
+              <LogOut size={12} />
             </button>
           </div>
         </div>
