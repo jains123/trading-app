@@ -45,12 +45,16 @@ const STRATEGIES: Strategy[] = [
 interface Props {
   enabledStrategies: string[];
   onChange: (ids: string[]) => void;
+  allowedStrategies?: string[];
+  showCombos?: boolean;
 }
 
-export default function StrategyPanel({ enabledStrategies, onChange }: Props) {
+export default function StrategyPanel({ enabledStrategies, onChange, allowedStrategies, showCombos = true }: Props) {
+  const allowed = allowedStrategies ?? STRATEGIES.map((s) => s.id);
+
   function toggle(id: string) {
+    if (!allowed.includes(id)) return;
     if (enabledStrategies.includes(id)) {
-      // Don't allow disabling all strategies
       if (enabledStrategies.length <= 1) return;
       onChange(enabledStrategies.filter((s) => s !== id));
     } else {
@@ -84,28 +88,37 @@ export default function StrategyPanel({ enabledStrategies, onChange }: Props) {
       <div className="space-y-2">
         {STRATEGIES.map((s) => {
           const active = enabledStrategies.includes(s.id);
+          const locked = !allowed.includes(s.id);
           return (
             <button
               key={s.id}
               onClick={() => toggle(s.id)}
+              disabled={locked}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
-                active
-                  ? 'bg-[#58a6ff]/10 border-[#58a6ff]/40 text-[#e6edf3]'
-                  : 'border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/20 hover:text-[#e6edf3]'
+                locked
+                  ? 'opacity-40 cursor-not-allowed border-[#30363d]'
+                  : active
+                    ? 'bg-[#58a6ff]/10 border-[#58a6ff]/40 text-[#e6edf3]'
+                    : 'border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/20 hover:text-[#e6edf3]'
               }`}
             >
-              <span className={active ? 'text-[#58a6ff]' : ''}>{s.icon}</span>
+              <span className={active && !locked ? 'text-[#58a6ff]' : ''}>{s.icon}</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold">{s.name}</span>
+                  {locked && (
+                    <span className="text-[9px] bg-[#d29922]/10 text-[#d29922] px-1.5 py-0.5 rounded uppercase tracking-widest">
+                      Pro
+                    </span>
+                  )}
                 </div>
                 <p className="text-[10px] mt-0.5 opacity-70">{s.description}</p>
               </div>
               <div
-                className={`w-8 h-4 rounded-full transition-colors relative ${active ? 'bg-[#58a6ff]' : 'bg-[#30363d]'}`}
+                className={`w-8 h-4 rounded-full transition-colors relative ${active && !locked ? 'bg-[#58a6ff]' : 'bg-[#30363d]'}`}
               >
                 <div
-                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${active ? 'translate-x-4' : 'translate-x-0.5'}`}
+                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${active && !locked ? 'translate-x-4' : 'translate-x-0.5'}`}
                 />
               </div>
             </button>
@@ -114,7 +127,7 @@ export default function StrategyPanel({ enabledStrategies, onChange }: Props) {
       </div>
 
       {/* Combo presets */}
-      <div className="pt-2 border-t border-[#30363d] space-y-2">
+      {showCombos && <div className="pt-2 border-t border-[#30363d] space-y-2">
         <div className="flex items-center gap-2">
           <Zap size={12} className="text-[#d29922]" />
           <span className="text-[10px] font-semibold text-[#8b949e] uppercase tracking-widest">
@@ -150,7 +163,7 @@ export default function StrategyPanel({ enabledStrategies, onChange }: Props) {
             );
           })}
         </div>
-      </div>
+      </div>}
 
       {/* Multi-strategy info */}
       {enabledStrategies.length > 1 && (

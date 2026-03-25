@@ -1,16 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCw, Wifi, WifiOff, Clock, SlidersHorizontal, X, LogOut } from 'lucide-react';
+import { RefreshCw, Wifi, WifiOff, Clock, SlidersHorizontal, X, LogOut, Lock, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { AssetData, NotificationSettings, SignalHistoryEntry, SignalType } from '@/lib/types';
+import type { PlanFeatures, UserPlanStatus } from '@/lib/plans';
 import AssetCard from './AssetCard';
 import NotificationPanel from './NotificationPanel';
 import StrategyPanel from './StrategyPanel';
 import SignalBadge from './SignalBadge';
 import BacktestPanel from './BacktestPanel';
-
-const POLL_INTERVAL = 60_000; // 1 minute
 
 const NOTIFY_TAGS: Record<string, string[]> = {
   BUY: ['green_circle', 'chart_with_upwards_trend', 'moneybag'],
@@ -45,6 +44,52 @@ function useLocalStorage<T>(key: string, defaultVal: T): [T, (v: T) => void] {
   return [val, set];
 }
 
+/* ------------------------------------------------------------------ */
+/*  Upgrade prompt — shown on locked features                         */
+/* ------------------------------------------------------------------ */
+
+function UpgradeOverlay({ label }: { label: string }) {
+  return (
+    <div className="relative">
+      <div className="absolute inset-0 bg-[#0d1117]/80 backdrop-blur-sm rounded-xl z-10 flex flex-col items-center justify-center gap-2 border border-[#d29922]/30">
+        <Lock size={16} className="text-[#d29922]" />
+        <p className="text-[10px] text-[#d29922] font-semibold text-center px-4">
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Locked asset card placeholder                                      */
+/* ------------------------------------------------------------------ */
+
+function LockedAssetCard({ symbol, name, type }: { symbol: string; name: string; type: string }) {
+  return (
+    <div className="relative bg-[#161b22] border border-[#30363d] rounded-xl p-4 flex flex-col gap-3 opacity-50">
+      <div className="absolute inset-0 bg-[#0d1117]/60 backdrop-blur-[2px] rounded-xl z-10 flex flex-col items-center justify-center gap-1.5">
+        <Lock size={14} className="text-[#d29922]" />
+        <span className="text-[9px] text-[#d29922] font-semibold">PRO</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="font-mono font-bold text-[#e6edf3] text-sm">{symbol.replace('-USD', '')}</span>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide ${
+          type === 'crypto' ? 'bg-[#58a6ff]/10 text-[#58a6ff]' : 'bg-[#8b949e]/10 text-[#8b949e]'
+        }`}>
+          {type === 'crypto' ? 'CRYPTO' : 'STOCK'}
+        </span>
+      </div>
+      <p className="text-[#8b949e] text-xs">{name}</p>
+      <div className="h-12" />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main Dashboard                                                     */
+/* ------------------------------------------------------------------ */
+
 export default function Dashboard() {
   const [assets, setAssets] = useState<AssetData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,15 +114,47 @@ export default function Dashboard() {
     ['rsi'],
   );
 
+  // Plan state
+  const [planStatus, setPlanStatus] = useState<UserPlanStatus | null>(null);
+  const features = planStatus?.features ?? null;
+  const isPro = planStatus?.plan === 'pro';
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const router = useRouter();
   const abortRef = useRef<AbortController | null>(null);
+
+  // Fetch user plan on mount
+  useEffect(() => {
+    fetch('/api/me', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.plan && data.features) {
+          setPlanStatus({ plan: data.plan, features: data.features, trial: data.trial });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // If user is on free plan, restrict strategies to allowed ones
+  useEffect(() => {
+    if (!features) return;
+    const allowed = features.strategies;
+    const filtered = enabledStrategies.filter((s) => allowed.includes(s));
+    if (filtered.length === 0) {
+      setEnabledStrategies([allowed[0]]);
+    } else if (filtered.length !== enabledStrategies.length) {
+      setEnabledStrategies(filtered);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [features]);
 
   async function handleLogout() {
     await fetch('/api/users/logout', { method: 'POST', credentials: 'include' });
     router.push('/login');
     router.refresh();
   }
+
+  const pollInterval = (features?.pollInterval ?? 60) * 1000;
 
   const fetchAssets = useCallback(
     async (manual = false) => {
@@ -104,7 +181,7 @@ export default function Dashboard() {
         setError(null);
 
         // Check for signal changes and notify
-        if (notifSettings.enabled && notifSettings.ntfyTopic) {
+        if (notifSettings.enabled && notifSettings.ntfyTopic && (features?.notifications ?? false)) {
           const updatedPrev = { ...prevSignals };
           const newHistory: SignalHistoryEntry[] = [];
 
@@ -112,7 +189,6 @@ export default function Dashboard() {
             if (asset.signal === 'LOADING' || asset.signal === 'ERROR') continue;
             const prev = prevSignals[asset.symbol];
             if (prev !== asset.signal && (asset.signal === 'BUY' || asset.signal === 'SELL')) {
-              // Signal changed to actionable — notify
               const emoji = asset.signal === 'BUY' ? '🟢' : '🔴';
               try {
                 await fetch('/api/notify', {
@@ -126,9 +202,7 @@ export default function Dashboard() {
                     tags: NOTIFY_TAGS[asset.signal] ?? [],
                   }),
                 });
-              } catch {
-                // Notification failure shouldn't break the app
-              }
+              } catch {}
 
               newHistory.push({
                 symbol: asset.symbol,
@@ -147,7 +221,6 @@ export default function Dashboard() {
             setSignalHistory([...newHistory, ...signalHistory].slice(0, 50));
           }
         } else {
-          // Still track signals even if notifications are off
           const updatedPrev = { ...prevSignals };
           for (const asset of newAssets) {
             if (asset.signal !== 'LOADING' && asset.signal !== 'ERROR') {
@@ -171,12 +244,12 @@ export default function Dashboard() {
   // Initial fetch + polling
   useEffect(() => {
     fetchAssets();
-    const interval = setInterval(() => fetchAssets(), POLL_INTERVAL);
+    const interval = setInterval(() => fetchAssets(), pollInterval);
     return () => {
       clearInterval(interval);
       abortRef.current?.abort();
     };
-  }, [fetchAssets]);
+  }, [fetchAssets, pollInterval]);
 
   // Seconds counter
   useEffect(() => {
@@ -188,14 +261,57 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, [lastFetch]);
 
-  const stocks = assets.filter((a) => a.type === 'stock');
-  const crypto = assets.filter((a) => a.type === 'crypto');
-  const buys = assets.filter((a) => a.signal === 'BUY').length;
-  const sells = assets.filter((a) => a.signal === 'SELL').length;
+  // Filter assets based on plan
+  const allowedSymbols = features?.allowedAssets ?? [];
+  const isAllowed = (symbol: string) =>
+    allowedSymbols.length === 0 || allowedSymbols.includes(symbol);
+
+  const allStocks = assets.filter((a) => a.type === 'stock');
+  const allCrypto = assets.filter((a) => a.type === 'crypto');
+  const stocks = allStocks.filter((a) => isAllowed(a.symbol));
+  const crypto = allCrypto.filter((a) => isAllowed(a.symbol));
+  const lockedStocks = allStocks.filter((a) => !isAllowed(a.symbol));
+  const lockedCrypto = allCrypto.filter((a) => !isAllowed(a.symbol));
+
+  const buys = [...stocks, ...crypto].filter((a) => a.signal === 'BUY').length;
+  const sells = [...stocks, ...crypto].filter((a) => a.signal === 'SELL').length;
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3]">
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        {/* Trial banner */}
+        {planStatus?.trial.active && (
+          <div className="bg-[#d29922]/10 border border-[#d29922]/30 rounded-lg px-4 py-3 flex items-center gap-3">
+            <Sparkles size={16} className="text-[#d29922] shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-[#e6edf3]">
+                <span className="font-semibold">Pro Trial</span> — {planStatus.trial.daysLeft} day{planStatus.trial.daysLeft !== 1 ? 's' : ''} remaining
+              </p>
+              <p className="text-xs text-[#8b949e] mt-0.5">
+                You have full access to all features. After the trial, you&apos;ll be moved to the free plan.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Expired trial / free plan banner */}
+        {planStatus && !isPro && !planStatus.trial.active && (
+          <div className="bg-[#58a6ff]/10 border border-[#58a6ff]/30 rounded-lg px-4 py-3 flex items-center gap-3">
+            <Lock size={16} className="text-[#58a6ff] shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-[#e6edf3]">
+                <span className="font-semibold">Free Plan</span> — limited to {features?.maxAssets} assets and RSI only
+              </p>
+              <p className="text-xs text-[#8b949e] mt-0.5">
+                Upgrade to Pro for all 12 assets, 4 strategies, backtesting, SL/TP, and push notifications.
+              </p>
+            </div>
+            <button className="shrink-0 text-xs px-4 py-2 bg-[#58a6ff] text-[#0d1117] font-semibold rounded-lg hover:bg-[#79b8ff] transition-colors">
+              Upgrade
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -208,7 +324,6 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Summary pills */}
             {!loading && (
               <div className="flex gap-2">
                 {buys > 0 && (
@@ -224,7 +339,6 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Status */}
             <div className="flex items-center gap-1.5 text-xs text-[#8b949e]">
               {error ? (
                 <WifiOff size={12} className="text-[#f85149]" />
@@ -267,7 +381,6 @@ export default function Dashboard() {
 
         {/* Main grid */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* Assets — takes 3 cols */}
           <div className="xl:col-span-3 space-y-6">
             {/* Stocks */}
             <section>
@@ -291,7 +404,11 @@ export default function Dashboard() {
                       buyThreshold={notifSettings.buyThreshold}
                       sellThreshold={notifSettings.sellThreshold}
                       enabledStrategies={enabledStrategies}
+                      isPro={isPro}
                     />
+                  ))}
+                  {lockedStocks.map((a) => (
+                    <LockedAssetCard key={a.symbol} symbol={a.symbol} name={a.name} type={a.type} />
                   ))}
                 </div>
               )}
@@ -319,7 +436,11 @@ export default function Dashboard() {
                       buyThreshold={notifSettings.buyThreshold}
                       sellThreshold={notifSettings.sellThreshold}
                       enabledStrategies={enabledStrategies}
+                      isPro={isPro}
                     />
+                  ))}
+                  {lockedCrypto.map((a) => (
+                    <LockedAssetCard key={a.symbol} symbol={a.symbol} name={a.name} type={a.type} />
                   ))}
                 </div>
               )}
@@ -377,8 +498,10 @@ export default function Dashboard() {
               setNotifSettings={setNotifSettings}
               enabledStrategies={enabledStrategies}
               setEnabledStrategies={setEnabledStrategies}
-              assets={assets}
+              assets={[...stocks, ...crypto]}
               loading={loading}
+              features={features}
+              isPro={isPro}
             />
           </div>
         </div>
@@ -392,7 +515,7 @@ export default function Dashboard() {
         <SlidersHorizontal size={20} className="text-[#0d1117]" />
       </button>
 
-      {/* Mobile drawer overlay */}
+      {/* Mobile drawer */}
       {drawerOpen && (
         <div className="xl:hidden fixed inset-0 z-50 flex justify-end">
           <div
@@ -414,8 +537,10 @@ export default function Dashboard() {
               setNotifSettings={setNotifSettings}
               enabledStrategies={enabledStrategies}
               setEnabledStrategies={setEnabledStrategies}
-              assets={assets}
+              assets={[...stocks, ...crypto]}
               loading={loading}
+              features={features}
+              isPro={isPro}
             />
           </div>
         </div>
@@ -424,7 +549,10 @@ export default function Dashboard() {
   );
 }
 
-/* Shared sidebar content — used in both desktop column and mobile drawer */
+/* ------------------------------------------------------------------ */
+/*  Sidebar                                                            */
+/* ------------------------------------------------------------------ */
+
 function SidebarContent({
   notifSettings,
   setNotifSettings,
@@ -432,6 +560,8 @@ function SidebarContent({
   setEnabledStrategies,
   assets,
   loading,
+  features,
+  isPro,
 }: {
   notifSettings: NotificationSettings;
   setNotifSettings: (v: NotificationSettings) => void;
@@ -439,21 +569,60 @@ function SidebarContent({
   setEnabledStrategies: (v: string[]) => void;
   assets: AssetData[];
   loading: boolean;
+  features: PlanFeatures | null;
+  isPro: boolean;
 }) {
   return (
     <>
-      <NotificationPanel settings={notifSettings} onChange={setNotifSettings} />
+      {/* Notifications — pro only */}
+      {isPro ? (
+        <NotificationPanel settings={notifSettings} onChange={setNotifSettings} />
+      ) : (
+        <div className="relative">
+          <div className="opacity-40 pointer-events-none">
+            <NotificationPanel settings={notifSettings} onChange={setNotifSettings} />
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/60 rounded-xl border border-[#d29922]/20">
+            <div className="text-center">
+              <Lock size={14} className="text-[#d29922] mx-auto mb-1" />
+              <p className="text-[10px] text-[#d29922] font-semibold">Pro feature</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <StrategyPanel
         enabledStrategies={enabledStrategies}
         onChange={setEnabledStrategies}
+        allowedStrategies={features?.strategies}
+        showCombos={features?.combos ?? false}
       />
-      {!loading && assets.length > 0 && <BacktestPanel assets={assets} />}
 
-      {/* Poll info */}
+      {/* Backtest — pro only */}
+      {isPro ? (
+        !loading && assets.length > 0 && <BacktestPanel assets={assets} />
+      ) : (
+        <div className="relative">
+          <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 opacity-40">
+            <p className="text-sm font-semibold text-[#e6edf3] mb-2">Backtest</p>
+            <div className="space-y-2">
+              <div className="h-8 bg-[#0d1117] rounded-lg" />
+              <div className="h-8 bg-[#0d1117] rounded-lg" />
+            </div>
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/60 rounded-xl border border-[#d29922]/20">
+            <div className="text-center">
+              <Lock size={14} className="text-[#d29922] mx-auto mb-1" />
+              <p className="text-[10px] text-[#d29922] font-semibold">Pro feature</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-2">
         <h2 className="text-xs font-semibold text-[#8b949e] uppercase tracking-wider">Info</h2>
         <div className="space-y-1.5 text-xs text-[#8b949e]">
-          <p>Auto-refreshes every <span className="text-[#e6edf3]">60s</span></p>
+          <p>Auto-refreshes every <span className="text-[#e6edf3]">{(features?.pollInterval ?? 60)}s</span></p>
           <p>RSI calculated on <span className="text-[#e6edf3]">daily candles</span></p>
           <p>14-period Wilder&apos;s smoothed RSI</p>
           <p className="pt-1 border-t border-[#30363d]">

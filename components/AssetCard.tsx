@@ -51,16 +51,19 @@ export default function AssetCard({
   buyThreshold,
   sellThreshold,
   enabledStrategies,
+  isPro,
 }: {
   data: AssetData;
   buyThreshold: number;
   sellThreshold: number;
   enabledStrategies: string[];
+  isPro?: boolean;
 }) {
   const up = data.priceChangePct >= 0;
   const showBreakdown = enabledStrategies.length > 1 && data.strategySignals && !data.error;
-  const hasSltp = data.sltp && (data.signal === 'BUY' || data.signal === 'SELL');
-  const nearbyLevels = (data.levels ?? []).slice(0, 4);
+  const hasSltp = isPro && data.sltp && (data.signal === 'BUY' || data.signal === 'SELL');
+  const nearbyLevels = isPro ? (data.levels ?? []).slice(0, 4) : [];
+  const showBacktest = isPro && data.backtest && data.backtest.tradeCount > 0 && !data.error;
 
   return (
     <div
@@ -194,7 +197,7 @@ export default function AssetCard({
       )}
 
       {/* Backtest summary */}
-      {data.backtest && data.backtest.tradeCount > 0 && !data.error && (
+      {showBacktest && data.backtest && (
         <div className="flex items-center gap-2 text-[9px] text-[#8b949e] border-t border-[#30363d]/50 pt-2">
           <span className={`font-semibold font-mono ${data.backtest.totalReturn >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}`}>
             {data.backtest.totalReturn >= 0 ? '+' : ''}{data.backtest.totalReturn}%
