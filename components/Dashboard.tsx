@@ -7,6 +7,7 @@ import AssetCard from './AssetCard';
 import NotificationPanel from './NotificationPanel';
 import StrategyPanel from './StrategyPanel';
 import SignalBadge from './SignalBadge';
+import BacktestPanel from './BacktestPanel';
 
 const POLL_INTERVAL = 60_000; // 1 minute
 
@@ -81,6 +82,7 @@ export default function Dashboard() {
         const params = new URLSearchParams({
           buyThreshold: String(notifSettings.buyThreshold),
           sellThreshold: String(notifSettings.sellThreshold),
+          strategies: enabledStrategies.join(','),
         });
         const res = await fetch(`/api/assets?${params}`, { signal: ac.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -110,7 +112,7 @@ export default function Dashboard() {
                   body: JSON.stringify({
                     topic: notifSettings.ntfyTopic,
                     title: `${emoji} ${asset.signal}: ${asset.name} (${asset.symbol.replace('-USD', '')})`,
-                    message: `Price: ${formatPrice(asset.price)}  |  RSI: ${asset.rsi?.toFixed(1) ?? '—'}\nMake your trade on T212`,
+                    message: `Price: ${formatPrice(asset.price)}  |  RSI: ${asset.rsi?.toFixed(1) ?? '—'}  |  Strategies: ${enabledStrategies.join(', ').toUpperCase()}\nMake your trade on T212`,
                     priority: 4,
                     tags: NOTIFY_TAGS[asset.signal] ?? [],
                   }),
@@ -154,7 +156,7 @@ export default function Dashboard() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [notifSettings.buyThreshold, notifSettings.sellThreshold, notifSettings.enabled, notifSettings.ntfyTopic],
+    [notifSettings.buyThreshold, notifSettings.sellThreshold, notifSettings.enabled, notifSettings.ntfyTopic, enabledStrategies],
   );
 
   // Initial fetch + polling
@@ -191,7 +193,9 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold text-[#e6edf3] tracking-tight flex items-center gap-2">
               <span className="text-[#58a6ff]">◈</span> Trading Signals
             </h1>
-            <p className="text-xs text-[#8b949e] mt-0.5">RSI-based buy/sell signals · T212</p>
+            <p className="text-xs text-[#8b949e] mt-0.5">
+              {enabledStrategies.length === 1 ? 'Single' : 'Multi'}-strategy signals · T212
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -270,6 +274,7 @@ export default function Dashboard() {
                       data={a}
                       buyThreshold={notifSettings.buyThreshold}
                       sellThreshold={notifSettings.sellThreshold}
+                      enabledStrategies={enabledStrategies}
                     />
                   ))}
                 </div>
@@ -297,6 +302,7 @@ export default function Dashboard() {
                       data={a}
                       buyThreshold={notifSettings.buyThreshold}
                       sellThreshold={notifSettings.sellThreshold}
+                      enabledStrategies={enabledStrategies}
                     />
                   ))}
                 </div>
@@ -355,6 +361,7 @@ export default function Dashboard() {
               enabledStrategies={enabledStrategies}
               onChange={setEnabledStrategies}
             />
+            {!loading && assets.length > 0 && <BacktestPanel assets={assets} />}
 
             {/* Poll info */}
             <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-2">

@@ -7,6 +7,38 @@ export interface Asset {
   type: AssetType;
 }
 
+export interface StrategyDetail {
+  signal: SignalType;
+  value?: number | null;
+  data?: Record<string, number | null> | null;
+}
+
+export interface SLTPData {
+  stopLoss: number;
+  takeProfit: number;
+  riskReward: number;
+  atr: number;
+  atrPct: number;
+}
+
+export interface PriceLevelData {
+  price: number;
+  type: 'support' | 'resistance';
+  strength: number;
+  distance: number;
+}
+
+export interface BacktestData {
+  totalReturn: number;
+  winRate: number;
+  tradeCount: number;
+  avgWin: number;
+  avgLoss: number;
+  maxDrawdown: number;
+  profitFactor: number;
+  avgRR: number;
+}
+
 export interface AssetData {
   symbol: string;
   name: string;
@@ -16,6 +48,10 @@ export interface AssetData {
   priceChangePct: number;
   rsi: number | null;
   signal: SignalType;
+  strategySignals: Record<string, StrategyDetail>;
+  sltp: SLTPData | null;
+  levels: PriceLevelData[];
+  backtest: BacktestData | null;
   sparkline: number[];
   lastUpdated: string;
   error?: boolean;

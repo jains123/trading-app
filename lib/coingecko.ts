@@ -34,7 +34,9 @@ export interface CoinPriceResult {
   currentPrice: number;
   priceChange: number;
   priceChangePct: number;
-  closes: number[]; // daily closing prices for RSI
+  closes: number[];
+  highs: number[];
+  lows: number[];
 }
 
 export async function fetchCoinGecko(geckoId: string): Promise<CoinPriceResult> {
@@ -60,5 +62,17 @@ export async function fetchCoinGecko(geckoId: string): Promise<CoinPriceResult> 
   const priceChange = currentPrice - prevClose;
   const priceChangePct = (priceChange / prevClose) * 100;
 
-  return { currentPrice, priceChange, priceChangePct, closes };
+  // CoinGecko daily only provides closing prices.
+  // Approximate highs/lows using adjacent closes to estimate intraday range.
+  const highs: number[] = [];
+  const lows: number[] = [];
+  for (let i = 0; i < closes.length; i++) {
+    const prev = i > 0 ? closes[i - 1] : closes[i];
+    const curr = closes[i];
+    const next = i < closes.length - 1 ? closes[i + 1] : closes[i];
+    highs.push(Math.max(prev, curr, next));
+    lows.push(Math.min(prev, curr, next));
+  }
+
+  return { currentPrice, priceChange, priceChangePct, closes, highs, lows };
 }

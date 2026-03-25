@@ -29,27 +29,43 @@ function httpsGet(url: string): Promise<{ status: number; body: string }> {
   });
 }
 
-function parseStooqCsv(csv: string): { closes: number[]; currentPrice: number; prevClose: number } {
+interface OHLCRow {
+  high: number;
+  low: number;
+  close: number;
+}
+
+function parseStooqCsv(csv: string): { rows: OHLCRow[]; closes: number[]; currentPrice: number; prevClose: number } {
   const lines = csv.trim().split('\n').filter(Boolean);
   if (lines.length < 2) throw new Error('Stooq: insufficient data');
 
   // Format: Date,Open,High,Low,Close,Volume (ascending date order)
-  const rows = lines.slice(1).map((line) => {
+  const rows: OHLCRow[] = [];
+  const closes: number[] = [];
+  for (const line of lines.slice(1)) {
     const cols = line.split(',');
-    return parseFloat(cols[4]); // Close price
-  }).filter((n) => !isNaN(n));
+    const high = parseFloat(cols[2]);
+    const low = parseFloat(cols[3]);
+    const close = parseFloat(cols[4]);
+    if (isNaN(close)) continue;
+    rows.push({ high: isNaN(high) ? close : high, low: isNaN(low) ? close : low, close });
+    closes.push(close);
+  }
 
-  if (rows.length < 2) throw new Error('Stooq: no valid rows');
+  if (closes.length < 2) throw new Error('Stooq: no valid rows');
 
   return {
-    closes: rows,
-    currentPrice: rows[rows.length - 1],
-    prevClose: rows[rows.length - 2],
+    rows,
+    closes,
+    currentPrice: closes[closes.length - 1],
+    prevClose: closes[closes.length - 2],
   };
 }
 
 export async function fetchStooqStock(stooqSymbol: string): Promise<{
   closes: number[];
+  highs: number[];
+  lows: number[];
   currentPrice: number;
   priceChange: number;
   priceChangePct: number;
@@ -65,9 +81,11 @@ export async function fetchStooqStock(stooqSymbol: string): Promise<{
 
   if (status !== 200) throw new Error(`Stooq HTTP ${status} for ${stooqSymbol}`);
 
-  const { closes, currentPrice, prevClose } = parseStooqCsv(body);
+  const { rows, closes, currentPrice, prevClose } = parseStooqCsv(body);
   const priceChange = currentPrice - prevClose;
   const priceChangePct = (priceChange / prevClose) * 100;
+  const highs = rows.map((r) => r.high);
+  const lows = rows.map((r) => r.low);
 
-  return { closes, currentPrice, priceChange, priceChangePct };
+  return { closes, highs, lows, currentPrice, priceChange, priceChangePct };
 }
