@@ -1,0 +1,131 @@
+export const STOCK_LIST: { symbol: string; name: string; stooqSymbol: string }[] = [
+  // Technology
+  { symbol: 'AAPL', name: 'Apple', stooqSymbol: 'AAPL.US' },
+  { symbol: 'MSFT', name: 'Microsoft', stooqSymbol: 'MSFT.US' },
+  { symbol: 'GOOGL', name: 'Alphabet (Google)', stooqSymbol: 'GOOGL.US' },
+  { symbol: 'AMZN', name: 'Amazon', stooqSymbol: 'AMZN.US' },
+  { symbol: 'META', name: 'Meta Platforms', stooqSymbol: 'META.US' },
+  { symbol: 'NVDA', name: 'NVIDIA', stooqSymbol: 'NVDA.US' },
+  { symbol: 'AMD', name: 'AMD', stooqSymbol: 'AMD.US' },
+  { symbol: 'INTC', name: 'Intel', stooqSymbol: 'INTC.US' },
+  { symbol: 'TSLA', name: 'Tesla', stooqSymbol: 'TSLA.US' },
+  { symbol: 'NFLX', name: 'Netflix', stooqSymbol: 'NFLX.US' },
+  { symbol: 'CRM', name: 'Salesforce', stooqSymbol: 'CRM.US' },
+  { symbol: 'ADBE', name: 'Adobe', stooqSymbol: 'ADBE.US' },
+  { symbol: 'ORCL', name: 'Oracle', stooqSymbol: 'ORCL.US' },
+  { symbol: 'CSCO', name: 'Cisco', stooqSymbol: 'CSCO.US' },
+  { symbol: 'IBM', name: 'IBM', stooqSymbol: 'IBM.US' },
+  { symbol: 'QCOM', name: 'Qualcomm', stooqSymbol: 'QCOM.US' },
+  { symbol: 'AVGO', name: 'Broadcom', stooqSymbol: 'AVGO.US' },
+  { symbol: 'TXN', name: 'Texas Instruments', stooqSymbol: 'TXN.US' },
+  { symbol: 'NOW', name: 'ServiceNow', stooqSymbol: 'NOW.US' },
+  { symbol: 'SHOP', name: 'Shopify', stooqSymbol: 'SHOP.US' },
+  { symbol: 'SQ', name: 'Block (Square)', stooqSymbol: 'SQ.US' },
+  { symbol: 'SNOW', name: 'Snowflake', stooqSymbol: 'SNOW.US' },
+  { symbol: 'UBER', name: 'Uber', stooqSymbol: 'UBER.US' },
+  { symbol: 'ABNB', name: 'Airbnb', stooqSymbol: 'ABNB.US' },
+  { symbol: 'PLTR', name: 'Palantir', stooqSymbol: 'PLTR.US' },
+
+  // Financials
+  { symbol: 'JPM', name: 'JPMorgan Chase', stooqSymbol: 'JPM.US' },
+  { symbol: 'GS', name: 'Goldman Sachs', stooqSymbol: 'GS.US' },
+  { symbol: 'BAC', name: 'Bank of America', stooqSymbol: 'BAC.US' },
+  { symbol: 'V', name: 'Visa', stooqSymbol: 'V.US' },
+  { symbol: 'MA', name: 'Mastercard', stooqSymbol: 'MA.US' },
+  { symbol: 'PYPL', name: 'PayPal', stooqSymbol: 'PYPL.US' },
+  { symbol: 'WFC', name: 'Wells Fargo', stooqSymbol: 'WFC.US' },
+  { symbol: 'MS', name: 'Morgan Stanley', stooqSymbol: 'MS.US' },
+  { symbol: 'C', name: 'Citigroup', stooqSymbol: 'C.US' },
+  { symbol: 'AXP', name: 'American Express', stooqSymbol: 'AXP.US' },
+  { symbol: 'BLK', name: 'BlackRock', stooqSymbol: 'BLK.US' },
+  { symbol: 'SCHW', name: 'Charles Schwab', stooqSymbol: 'SCHW.US' },
+
+  // Healthcare
+  { symbol: 'UNH', name: 'UnitedHealth', stooqSymbol: 'UNH.US' },
+  { symbol: 'JNJ', name: 'Johnson & Johnson', stooqSymbol: 'JNJ.US' },
+  { symbol: 'PFE', name: 'Pfizer', stooqSymbol: 'PFE.US' },
+  { symbol: 'MRK', name: 'Merck', stooqSymbol: 'MRK.US' },
+  { symbol: 'ABBV', name: 'AbbVie', stooqSymbol: 'ABBV.US' },
+  { symbol: 'LLY', name: 'Eli Lilly', stooqSymbol: 'LLY.US' },
+  { symbol: 'TMO', name: 'Thermo Fisher Scientific', stooqSymbol: 'TMO.US' },
+  { symbol: 'ABT', name: 'Abbott Laboratories', stooqSymbol: 'ABT.US' },
+  { symbol: 'BMY', name: 'Bristol-Myers Squibb', stooqSymbol: 'BMY.US' },
+  { symbol: 'AMGN', name: 'Amgen', stooqSymbol: 'AMGN.US' },
+  { symbol: 'GILD', name: 'Gilead Sciences', stooqSymbol: 'GILD.US' },
+  { symbol: 'MRNA', name: 'Moderna', stooqSymbol: 'MRNA.US' },
+
+  // Consumer Discretionary
+  { symbol: 'NKE', name: 'Nike', stooqSymbol: 'NKE.US' },
+  { symbol: 'DIS', name: 'Walt Disney', stooqSymbol: 'DIS.US' },
+  { symbol: 'MCD', name: "McDonald's", stooqSymbol: 'MCD.US' },
+  { symbol: 'SBUX', name: 'Starbucks', stooqSymbol: 'SBUX.US' },
+  { symbol: 'HD', name: 'Home Depot', stooqSymbol: 'HD.US' },
+  { symbol: 'LOW', name: "Lowe's", stooqSymbol: 'LOW.US' },
+  { symbol: 'TGT', name: 'Target', stooqSymbol: 'TGT.US' },
+  { symbol: 'BKNG', name: 'Booking Holdings', stooqSymbol: 'BKNG.US' },
+  { symbol: 'CMG', name: 'Chipotle', stooqSymbol: 'CMG.US' },
+  { symbol: 'GM', name: 'General Motors', stooqSymbol: 'GM.US' },
+  { symbol: 'F', name: 'Ford', stooqSymbol: 'F.US' },
+
+  // Consumer Staples
+  { symbol: 'KO', name: 'Coca-Cola', stooqSymbol: 'KO.US' },
+  { symbol: 'PEP', name: 'PepsiCo', stooqSymbol: 'PEP.US' },
+  { symbol: 'WMT', name: 'Walmart', stooqSymbol: 'WMT.US' },
+  { symbol: 'COST', name: 'Costco', stooqSymbol: 'COST.US' },
+  { symbol: 'PG', name: 'Procter & Gamble', stooqSymbol: 'PG.US' },
+  { symbol: 'CL', name: 'Colgate-Palmolive', stooqSymbol: 'CL.US' },
+  { symbol: 'MDLZ', name: 'Mondelez', stooqSymbol: 'MDLZ.US' },
+  { symbol: 'KHC', name: 'Kraft Heinz', stooqSymbol: 'KHC.US' },
+  { symbol: 'PM', name: 'Philip Morris', stooqSymbol: 'PM.US' },
+
+  // Energy
+  { symbol: 'XOM', name: 'Exxon Mobil', stooqSymbol: 'XOM.US' },
+  { symbol: 'CVX', name: 'Chevron', stooqSymbol: 'CVX.US' },
+  { symbol: 'COP', name: 'ConocoPhillips', stooqSymbol: 'COP.US' },
+  { symbol: 'SLB', name: 'Schlumberger', stooqSymbol: 'SLB.US' },
+  { symbol: 'OXY', name: 'Occidental Petroleum', stooqSymbol: 'OXY.US' },
+
+  // Industrials
+  { symbol: 'BA', name: 'Boeing', stooqSymbol: 'BA.US' },
+  { symbol: 'CAT', name: 'Caterpillar', stooqSymbol: 'CAT.US' },
+  { symbol: 'HON', name: 'Honeywell', stooqSymbol: 'HON.US' },
+  { symbol: 'UPS', name: 'UPS', stooqSymbol: 'UPS.US' },
+  { symbol: 'RTX', name: 'RTX (Raytheon)', stooqSymbol: 'RTX.US' },
+  { symbol: 'LMT', name: 'Lockheed Martin', stooqSymbol: 'LMT.US' },
+  { symbol: 'GE', name: 'GE Aerospace', stooqSymbol: 'GE.US' },
+  { symbol: 'DE', name: 'Deere & Company', stooqSymbol: 'DE.US' },
+  { symbol: 'MMM', name: '3M', stooqSymbol: 'MMM.US' },
+
+  // Communication Services
+  { symbol: 'CMCSA', name: 'Comcast', stooqSymbol: 'CMCSA.US' },
+  { symbol: 'T', name: 'AT&T', stooqSymbol: 'T.US' },
+  { symbol: 'VZ', name: 'Verizon', stooqSymbol: 'VZ.US' },
+  { symbol: 'TMUS', name: 'T-Mobile', stooqSymbol: 'TMUS.US' },
+
+  // Materials
+  { symbol: 'LIN', name: 'Linde', stooqSymbol: 'LIN.US' },
+  { symbol: 'APD', name: 'Air Products', stooqSymbol: 'APD.US' },
+  { symbol: 'FCX', name: 'Freeport-McMoRan', stooqSymbol: 'FCX.US' },
+  { symbol: 'NEM', name: 'Newmont', stooqSymbol: 'NEM.US' },
+  { symbol: 'DOW', name: 'Dow Inc.', stooqSymbol: 'DOW.US' },
+
+  // Utilities
+  { symbol: 'NEE', name: 'NextEra Energy', stooqSymbol: 'NEE.US' },
+  { symbol: 'DUK', name: 'Duke Energy', stooqSymbol: 'DUK.US' },
+  { symbol: 'SO', name: 'Southern Company', stooqSymbol: 'SO.US' },
+
+  // Real Estate
+  { symbol: 'AMT', name: 'American Tower', stooqSymbol: 'AMT.US' },
+  { symbol: 'PLD', name: 'Prologis', stooqSymbol: 'PLD.US' },
+  { symbol: 'CCI', name: 'Crown Castle', stooqSymbol: 'CCI.US' },
+
+  // Other Notable
+  { symbol: 'BRK.B', name: 'Berkshire Hathaway', stooqSymbol: 'BRK.B.US' },
+  { symbol: 'COIN', name: 'Coinbase', stooqSymbol: 'COIN.US' },
+  { symbol: 'RIVN', name: 'Rivian', stooqSymbol: 'RIVN.US' },
+  { symbol: 'SOFI', name: 'SoFi Technologies', stooqSymbol: 'SOFI.US' },
+  { symbol: 'SPOT', name: 'Spotify', stooqSymbol: 'SPOT.US' },
+  { symbol: 'ZM', name: 'Zoom Video', stooqSymbol: 'ZM.US' },
+  { symbol: 'CRWD', name: 'CrowdStrike', stooqSymbol: 'CRWD.US' },
+  { symbol: 'PANW', name: 'Palo Alto Networks', stooqSymbol: 'PANW.US' },
+];

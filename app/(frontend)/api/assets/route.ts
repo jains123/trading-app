@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { headers as getHeaders } from 'next/headers';
+import { getPayload } from 'payload';
+import config from '@payload-config';
 import { ASSETS } from '@/lib/assets';
 import { fetchStooqStock } from '@/lib/stooq';
 import { fetchCoinGecko } from '@/lib/coingecko';
@@ -6,30 +9,37 @@ import { calculateAllStrategies, combineSignals } from '@/lib/strategies';
 import { calculateSLTP } from '@/lib/atr';
 import { detectLevels } from '@/lib/levels';
 import { runBacktest } from '@/lib/backtest';
+import { TIMEFRAME_PRESETS, type TimeframeId, type TimeframePreset } from '@/lib/timeframes';
 import type { AssetData, ApiAssetsResponse, StrategyDetail } from '@/lib/types';
 
 const SPARKLINE_POINTS = 24;
 const DELAY_MS = 500;
-const CACHE_TTL = 15 * 60_000; // 15 minute server-side cache
+const CACHE_TTL = 15 * 60_000;
 
 export const dynamic = 'force-dynamic';
 
-let _cache: { data: ApiAssetsResponse; expiresAt: number } | null = null;
+// Per-asset cache keyed by "symbol:timeframe"
+const _assetCache = new Map<string, { data: AssetData; expiresAt: number }>();
 
 function delay(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
+interface WatchlistAsset {
+  symbol: string;
+  name: string;
+  type: 'stock' | 'crypto';
+  stooqSymbol?: string;
+  geckoId?: string;
+}
+
 async function fetchAssetData(
-  symbol: string,
-  name: string,
-  type: 'stock' | 'crypto',
-  stooqSymbol: string | undefined,
-  geckoId: string | undefined,
-  buyThreshold: number,
-  sellThreshold: number,
+  asset: WatchlistAsset,
   enabledStrategies: string[],
+  tf: TimeframePreset,
 ): Promise<AssetData> {
+  const { symbol, name, type, stooqSymbol, geckoId } = asset;
+
   try {
     let closes: number[];
     let highs: number[];
@@ -58,39 +68,24 @@ async function fetchAssetData(
       throw new Error(`No data source configured for ${symbol}`);
     }
 
-    // Calculate all strategy signals
-    const allSignals = calculateAllStrategies(closes, buyThreshold, sellThreshold);
+    const allSignals = calculateAllStrategies(closes, tf.rsiBuyThreshold, tf.rsiSellThreshold, tf);
 
-    // Build per-strategy detail map
     const strategySignals: Record<string, StrategyDetail> = {
       rsi: { signal: allSignals.rsi.signal, value: allSignals.rsi.value },
-      macd: {
-        signal: allSignals.macd.signal,
-        data: allSignals.macd.data ? { ...allSignals.macd.data } : null,
-      },
-      bb: {
-        signal: allSignals.bb.signal,
-        data: allSignals.bb.data ? { ...allSignals.bb.data } : null,
-      },
-      ma_cross: {
-        signal: allSignals.ma_cross.signal,
-        data: allSignals.ma_cross.data ? { ...allSignals.ma_cross.data } : null,
-      },
+      macd: { signal: allSignals.macd.signal, data: allSignals.macd.data ? { ...allSignals.macd.data } : null },
+      bb: { signal: allSignals.bb.signal, data: allSignals.bb.data ? { ...allSignals.bb.data } : null },
+      ma_cross: { signal: allSignals.ma_cross.signal, data: allSignals.ma_cross.data ? { ...allSignals.ma_cross.data } : null },
     };
 
-    // Combined signal based on enabled strategies
     const signal = combineSignals(allSignals, enabledStrategies);
 
-    // SL/TP — only calculated when there's an actionable signal
     const sltp = (signal === 'BUY' || signal === 'SELL')
-      ? calculateSLTP(highs, lows, closes, signal)
+      ? calculateSLTP(highs, lows, closes, signal, tf.slMultiplier, tf.tpMultiplier)
       : null;
 
-    // Support/Resistance levels
     const levels = detectLevels(closes);
 
-    // Backtest
-    const backtestResult = runBacktest(closes, highs, lows, enabledStrategies, buyThreshold, sellThreshold);
+    const backtestResult = runBacktest(closes, highs, lows, enabledStrategies, tf.rsiBuyThreshold, tf.rsiSellThreshold, tf);
     const backtest = backtestResult ? {
       totalReturn: backtestResult.totalReturn,
       winRate: backtestResult.winRate,
@@ -105,99 +100,88 @@ async function fetchAssetData(
     const sparkline = closes.slice(-SPARKLINE_POINTS);
 
     return {
-      symbol,
-      name,
-      type,
-      price: currentPrice,
-      priceChange,
-      priceChangePct,
+      symbol, name, type,
+      price: currentPrice, priceChange, priceChangePct,
       rsi: allSignals.rsi.value,
-      signal,
-      strategySignals,
-      sltp,
-      levels,
-      backtest,
-      sparkline,
+      signal, strategySignals, sltp, levels, backtest, sparkline,
       lastUpdated: new Date().toISOString(),
     };
   } catch (err) {
     console.error(`[assets] ${symbol} error:`, err instanceof Error ? err.message : err);
     return {
-      symbol,
-      name,
-      type,
-      price: 0,
-      priceChange: 0,
-      priceChangePct: 0,
-      rsi: null,
-      signal: 'ERROR',
-      strategySignals: {},
-      sltp: null,
-      levels: [],
-      backtest: null,
-      sparkline: [],
-      lastUpdated: new Date().toISOString(),
-      error: true,
+      symbol, name, type,
+      price: 0, priceChange: 0, priceChangePct: 0,
+      rsi: null, signal: 'ERROR', strategySignals: {}, sltp: null, levels: [], backtest: null, sparkline: [],
+      lastUpdated: new Date().toISOString(), error: true,
     };
+  }
+}
+
+async function getUserWatchlist(): Promise<WatchlistAsset[] | null> {
+  try {
+    const payload = await getPayload({ config });
+    const headersList = await getHeaders();
+    const { user } = await payload.auth({ headers: headersList });
+    if (!user) return null;
+    const wl = (user as any).watchlist;
+    return Array.isArray(wl) && wl.length > 0 ? wl : null;
+  } catch {
+    return null;
   }
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const buyThreshold = parseFloat(searchParams.get('buyThreshold') ?? '30');
-  const sellThreshold = parseFloat(searchParams.get('sellThreshold') ?? '70');
   const enabledStrategies = (searchParams.get('strategies') ?? 'rsi').split(',').filter(Boolean);
+  const timeframeId = (searchParams.get('timeframe') ?? 'medium') as TimeframeId;
+  const tf = TIMEFRAME_PRESETS[timeframeId] ?? TIMEFRAME_PRESETS.medium;
 
-  // Serve cache if fresh
-  if (_cache && Date.now() < _cache.expiresAt) {
-    // Re-combine signals with the requested enabled strategies
-    const cachedAssets = _cache.data.assets.map((asset) => {
-      if (asset.error) return asset;
-      const allSignals = {
-        rsi: { signal: asset.strategySignals.rsi?.signal ?? ('LOADING' as const), value: asset.rsi },
-        macd: { signal: asset.strategySignals.macd?.signal ?? ('LOADING' as const), data: (asset.strategySignals.macd?.data as any) ?? null },
-        bb: { signal: asset.strategySignals.bb?.signal ?? ('LOADING' as const), data: (asset.strategySignals.bb?.data as any) ?? null },
-        ma_cross: { signal: asset.strategySignals.ma_cross?.signal ?? ('LOADING' as const), data: (asset.strategySignals.ma_cross?.data as any) ?? null },
-      };
-      const signal = combineSignals(allSignals, enabledStrategies);
-      // SL/TP needs recalculation when signal changes
-      // We don't have raw high/low data in cache, so clear sltp if signal changed
-      const sltp = (signal === 'BUY' || signal === 'SELL') ? asset.sltp : null;
-      return { ...asset, signal, sltp };
-    });
+  // Load user's watchlist; fall back to hardcoded defaults
+  const userWatchlist = await getUserWatchlist();
+  const watchlist: WatchlistAsset[] = userWatchlist ?? ASSETS.map((a) => ({
+    symbol: a.symbol, name: a.name, type: a.type, stooqSymbol: a.stooqSymbol, geckoId: a.geckoId,
+  }));
 
-    return NextResponse.json(
-      { assets: cachedAssets, fetchedAt: _cache.data.fetchedAt },
-      { headers: { 'Cache-Control': 'no-store', 'X-Cache': 'HIT' } },
-    );
-  }
-
+  const now = Date.now();
   const assets: AssetData[] = [];
-  for (let i = 0; i < ASSETS.length; i++) {
-    const asset = ASSETS[i];
-    const data = await fetchAssetData(
-      asset.symbol,
-      asset.name,
-      asset.type,
-      asset.stooqSymbol,
-      asset.geckoId,
-      buyThreshold,
-      sellThreshold,
-      enabledStrategies,
-    );
+  let fetchCount = 0;
+
+  for (const asset of watchlist) {
+    const cacheKey = `${asset.symbol}:${timeframeId}`;
+    const cached = _assetCache.get(cacheKey);
+
+    if (cached && now < cached.expiresAt) {
+      // Re-combine signal with current enabled strategies
+      const a = cached.data;
+      if (!a.error) {
+        const allSignals = {
+          rsi: { signal: a.strategySignals.rsi?.signal ?? ('LOADING' as const), value: a.rsi },
+          macd: { signal: a.strategySignals.macd?.signal ?? ('LOADING' as const), data: (a.strategySignals.macd?.data as any) ?? null },
+          bb: { signal: a.strategySignals.bb?.signal ?? ('LOADING' as const), data: (a.strategySignals.bb?.data as any) ?? null },
+          ma_cross: { signal: a.strategySignals.ma_cross?.signal ?? ('LOADING' as const), data: (a.strategySignals.ma_cross?.data as any) ?? null },
+        };
+        const signal = combineSignals(allSignals, enabledStrategies);
+        const sltp = (signal === 'BUY' || signal === 'SELL') ? a.sltp : null;
+        assets.push({ ...a, signal, sltp });
+      } else {
+        assets.push(a);
+      }
+      continue;
+    }
+
+    // Cache miss — fetch fresh
+    if (fetchCount > 0) await delay(DELAY_MS);
+    const data = await fetchAssetData(asset, enabledStrategies, tf);
+    fetchCount++;
+
+    if (!data.error) {
+      _assetCache.set(cacheKey, { data, expiresAt: now + CACHE_TTL });
+    }
     assets.push(data);
-    if (i < ASSETS.length - 1) await delay(DELAY_MS);
   }
 
-  const response: ApiAssetsResponse = {
-    assets,
-    fetchedAt: new Date().toISOString(),
-  };
-
-  // Only cache when ALL assets succeed
-  if (assets.every((a) => !a.error)) {
-    _cache = { data: response, expiresAt: Date.now() + CACHE_TTL };
-  }
-
-  return NextResponse.json(response, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json(
+    { assets, fetchedAt: new Date().toISOString() } satisfies ApiAssetsResponse,
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
 }

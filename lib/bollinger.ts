@@ -47,10 +47,14 @@ export function calculateBollinger(
   };
 }
 
-export function getBollingerSignal(closes: number[]): { signal: SignalType; data: BollingerResult | null } {
-  if (closes.length < 20) return { signal: 'LOADING', data: null };
+export function getBollingerSignal(
+  closes: number[],
+  period = 20,
+  stdDevMultiplier = 2,
+): { signal: SignalType; data: BollingerResult | null } {
+  if (closes.length < period) return { signal: 'LOADING', data: null };
 
-  const result = calculateBollinger(closes);
+  const result = calculateBollinger(closes, period, stdDevMultiplier);
   if (!result) return { signal: 'LOADING', data: null };
 
   // %B below 0 = price below lower band (oversold)

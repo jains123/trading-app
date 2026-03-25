@@ -16,6 +16,8 @@
 import { calculateAllStrategies, combineSignals } from './strategies';
 import { calculateATR } from './atr';
 import type { SignalType } from './types';
+import type { TimeframePreset } from './timeframes';
+import { TIMEFRAME_PRESETS } from './timeframes';
 
 export interface Trade {
   entryDay: number;
@@ -39,10 +41,6 @@ export interface BacktestResult {
   trades: Trade[];
 }
 
-const MIN_DATA_POINTS = 55; // need enough for 50 EMA + buffer
-const SL_MULTIPLIER = 1.5;
-const TP_MULTIPLIER = 3;
-
 export function runBacktest(
   closes: number[],
   highs: number[],
@@ -50,8 +48,11 @@ export function runBacktest(
   enabledStrategies: string[],
   buyThreshold = 30,
   sellThreshold = 70,
+  tf?: TimeframePreset,
 ): BacktestResult | null {
-  if (closes.length < MIN_DATA_POINTS) return null;
+  const p = tf ?? TIMEFRAME_PRESETS.medium;
+  const minDataPoints = Math.max(p.maCrossSlow + 5, p.macdSlow + p.macdSignal + 2, 30);
+  if (closes.length < minDataPoints) return null;
 
   const trades: Trade[] = [];
   let inTrade = false;
@@ -62,12 +63,12 @@ export function runBacktest(
   let direction: 'long' | 'short' = 'long';
 
   // Walk forward through the data, using only past data for signals
-  for (let day = MIN_DATA_POINTS; day < closes.length; day++) {
+  for (let day = minDataPoints; day < closes.length; day++) {
     const pastCloses = closes.slice(0, day + 1);
     const pastHighs = highs.slice(0, day + 1);
     const pastLows = lows.slice(0, day + 1);
 
-    const allSignals = calculateAllStrategies(pastCloses, buyThreshold, sellThreshold);
+    const allSignals = calculateAllStrategies(pastCloses, buyThreshold, sellThreshold, p);
     const signal = combineSignals(allSignals, enabledStrategies);
 
     if (inTrade) {
@@ -120,7 +121,7 @@ export function runBacktest(
     }
 
     if (!inTrade && (signal === 'BUY' || signal === 'SELL')) {
-      const atr = calculateATR(pastHighs, pastLows, pastCloses);
+      const atr = calculateATR(pastHighs, pastLows, pastCloses, p.atrPeriod);
       if (!atr) continue;
 
       inTrade = true;
@@ -129,11 +130,11 @@ export function runBacktest(
       direction = signal === 'BUY' ? 'long' : 'short';
 
       if (direction === 'long') {
-        stopLoss = entryPrice - SL_MULTIPLIER * atr.atr;
-        takeProfit = entryPrice + TP_MULTIPLIER * atr.atr;
+        stopLoss = entryPrice - p.slMultiplier * atr.atr;
+        takeProfit = entryPrice + p.tpMultiplier * atr.atr;
       } else {
-        stopLoss = entryPrice + SL_MULTIPLIER * atr.atr;
-        takeProfit = entryPrice - TP_MULTIPLIER * atr.atr;
+        stopLoss = entryPrice + p.slMultiplier * atr.atr;
+        takeProfit = entryPrice - p.tpMultiplier * atr.atr;
       }
     }
   }

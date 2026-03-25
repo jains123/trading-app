@@ -46,11 +46,15 @@ export function calculateMACross(
   };
 }
 
-export function getMACrossSignal(closes: number[]): { signal: SignalType; data: MACrossResult | null } {
-  if (closes.length < 52) return { signal: 'LOADING', data: null };
+export function getMACrossSignal(
+  closes: number[],
+  fastPeriod = 20,
+  slowPeriod = 50,
+): { signal: SignalType; data: MACrossResult | null } {
+  if (closes.length < slowPeriod + 2) return { signal: 'LOADING', data: null };
 
-  const fast = ema(closes, 20);
-  const slow = ema(closes, 50);
+  const fast = ema(closes, fastPeriod);
+  const slow = ema(closes, slowPeriod);
 
   const last = closes.length - 1;
   const prev = last - 1;

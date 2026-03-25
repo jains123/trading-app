@@ -1,4 +1,6 @@
 import type { SignalType } from './types';
+import type { TimeframePreset } from './timeframes';
+import { TIMEFRAME_PRESETS } from './timeframes';
 import { calculateRSI, getSignal as getRSISignal } from './rsi';
 import { getMACDSignal, type MACDResult } from './macd';
 import { getBollingerSignal, type BollingerResult } from './bollinger';
@@ -100,12 +102,14 @@ export function calculateAllStrategies(
   closes: number[],
   buyThreshold = 30,
   sellThreshold = 70,
+  tf?: TimeframePreset,
 ): StrategySignals {
-  const rsiValue = calculateRSI(closes);
-  const rsiSignal = getRSISignal(rsiValue, buyThreshold, sellThreshold);
-  const macd = getMACDSignal(closes);
-  const bb = getBollingerSignal(closes);
-  const maCross = getMACrossSignal(closes);
+  const p = tf ?? TIMEFRAME_PRESETS.medium;
+  const rsiValue = calculateRSI(closes, p.rsiPeriod);
+  const rsiSignal = getRSISignal(rsiValue, p.rsiBuyThreshold, p.rsiSellThreshold);
+  const macd = getMACDSignal(closes, p.macdFast, p.macdSlow, p.macdSignal);
+  const bb = getBollingerSignal(closes, p.bbPeriod, p.bbStdDev);
+  const maCross = getMACrossSignal(closes, p.maCrossFast, p.maCrossSlow);
 
   return {
     rsi: { signal: rsiSignal, value: rsiValue },

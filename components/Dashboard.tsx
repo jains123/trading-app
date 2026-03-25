@@ -1,15 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshCw, Wifi, WifiOff, Clock, SlidersHorizontal, X, LogOut, Lock, Sparkles } from 'lucide-react';
+import { RefreshCw, Wifi, WifiOff, Clock, SlidersHorizontal, X, LogOut, Lock, Sparkles, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { AssetData, NotificationSettings, SignalHistoryEntry, SignalType } from '@/lib/types';
 import type { PlanFeatures, UserPlanStatus } from '@/lib/plans';
+import type { TimeframeId } from '@/lib/timeframes';
 import AssetCard from './AssetCard';
 import NotificationPanel from './NotificationPanel';
 import StrategyPanel from './StrategyPanel';
 import SignalBadge from './SignalBadge';
 import BacktestPanel from './BacktestPanel';
+import AssetSearch from './AssetSearch';
+import TimeframeSelector from './TimeframeSelector';
 
 const NOTIFY_TAGS: Record<string, string[]> = {
   BUY: ['green_circle', 'chart_with_upwards_trend', 'moneybag'],
@@ -114,22 +117,44 @@ export default function Dashboard() {
     ['rsi'],
   );
 
+  const [timeframe, setTimeframe] = useLocalStorage<TimeframeId>('timeframe', 'medium');
+
   // Plan state
   const [planStatus, setPlanStatus] = useState<UserPlanStatus | null>(null);
   const features = planStatus?.features ?? null;
   const isPro = planStatus?.plan === 'pro';
 
+  // Watchlist
+  interface WatchlistItem {
+    symbol: string;
+    name: string;
+    type: 'stock' | 'crypto';
+    stooqSymbol?: string;
+    geckoId?: string;
+  }
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const router = useRouter();
   const abortRef = useRef<AbortController | null>(null);
 
-  // Fetch user plan on mount
+  // Fetch user plan + watchlist on mount
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         if (data.plan && data.features) {
           setPlanStatus({ plan: data.plan, features: data.features, trial: data.trial });
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/watchlist', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.watchlist) && data.watchlist.length > 0) {
+          setWatchlist(data.watchlist);
         }
       })
       .catch(() => {});
@@ -154,6 +179,29 @@ export default function Dashboard() {
     router.refresh();
   }
 
+  async function updateWatchlist(newList: WatchlistItem[]) {
+    setWatchlist(newList);
+    try {
+      await fetch('/api/watchlist', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ watchlist: newList }),
+      });
+      // Re-fetch asset data with the updated watchlist
+      fetchAssets(true);
+    } catch {}
+  }
+
+  function handleAddAsset(item: WatchlistItem) {
+    if (watchlist.some((w) => w.symbol === item.symbol)) return;
+    updateWatchlist([...watchlist, item]);
+  }
+
+  function handleRemoveAsset(symbol: string) {
+    updateWatchlist(watchlist.filter((w) => w.symbol !== symbol));
+  }
+
   const pollInterval = (features?.pollInterval ?? 60) * 1000;
 
   const fetchAssets = useCallback(
@@ -169,6 +217,7 @@ export default function Dashboard() {
           buyThreshold: String(notifSettings.buyThreshold),
           sellThreshold: String(notifSettings.sellThreshold),
           strategies: enabledStrategies.join(','),
+          timeframe,
         });
         const res = await fetch(`/api/assets?${params}`, { signal: ac.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -238,7 +287,7 @@ export default function Dashboard() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [notifSettings.buyThreshold, notifSettings.sellThreshold, notifSettings.enabled, notifSettings.ntfyTopic, enabledStrategies],
+    [notifSettings.buyThreshold, notifSettings.sellThreshold, notifSettings.enabled, notifSettings.ntfyTopic, enabledStrategies, timeframe],
   );
 
   // Initial fetch + polling
@@ -261,20 +310,10 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, [lastFetch]);
 
-  // Filter assets based on plan
-  const allowedSymbols = features?.allowedAssets ?? [];
-  const isAllowed = (symbol: string) =>
-    allowedSymbols.length === 0 || allowedSymbols.includes(symbol);
-
-  const allStocks = assets.filter((a) => a.type === 'stock');
-  const allCrypto = assets.filter((a) => a.type === 'crypto');
-  const stocks = allStocks.filter((a) => isAllowed(a.symbol));
-  const crypto = allCrypto.filter((a) => isAllowed(a.symbol));
-  const lockedStocks = allStocks.filter((a) => !isAllowed(a.symbol));
-  const lockedCrypto = allCrypto.filter((a) => !isAllowed(a.symbol));
-
-  const buys = [...stocks, ...crypto].filter((a) => a.signal === 'BUY').length;
-  const sells = [...stocks, ...crypto].filter((a) => a.signal === 'SELL').length;
+  const stocks = assets.filter((a) => a.type === 'stock');
+  const crypto = assets.filter((a) => a.type === 'crypto');
+  const buys = assets.filter((a) => a.signal === 'BUY').length;
+  const sells = assets.filter((a) => a.signal === 'SELL').length;
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3]">
@@ -356,6 +395,14 @@ export default function Dashboard() {
             </div>
 
             <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#21262d] border border-[#30363d] rounded-lg hover:bg-[#58a6ff]/20 hover:border-[#58a6ff]/30 hover:text-[#58a6ff] transition-colors"
+              title="Add or remove assets"
+            >
+              <Search size={12} />
+              <span className="hidden sm:inline">Assets</span>
+            </button>
+            <button
               onClick={() => fetchAssets(true)}
               disabled={refreshing}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#21262d] border border-[#30363d] rounded-lg hover:bg-[#30363d] transition-colors disabled:opacity-50"
@@ -407,9 +454,6 @@ export default function Dashboard() {
                       isPro={isPro}
                     />
                   ))}
-                  {lockedStocks.map((a) => (
-                    <LockedAssetCard key={a.symbol} symbol={a.symbol} name={a.name} type={a.type} />
-                  ))}
                 </div>
               )}
             </section>
@@ -438,9 +482,6 @@ export default function Dashboard() {
                       enabledStrategies={enabledStrategies}
                       isPro={isPro}
                     />
-                  ))}
-                  {lockedCrypto.map((a) => (
-                    <LockedAssetCard key={a.symbol} symbol={a.symbol} name={a.name} type={a.type} />
                   ))}
                 </div>
               )}
@@ -498,7 +539,9 @@ export default function Dashboard() {
               setNotifSettings={setNotifSettings}
               enabledStrategies={enabledStrategies}
               setEnabledStrategies={setEnabledStrategies}
-              assets={[...stocks, ...crypto]}
+              timeframe={timeframe}
+              setTimeframe={setTimeframe}
+              assets={assets}
               loading={loading}
               features={features}
               isPro={isPro}
@@ -506,6 +549,16 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Asset search modal */}
+      <AssetSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        watchlist={watchlist}
+        onAdd={handleAddAsset}
+        onRemove={handleRemoveAsset}
+        maxAssets={features?.maxAssets ?? 12}
+      />
 
       {/* Mobile FAB */}
       <button
@@ -537,7 +590,9 @@ export default function Dashboard() {
               setNotifSettings={setNotifSettings}
               enabledStrategies={enabledStrategies}
               setEnabledStrategies={setEnabledStrategies}
-              assets={[...stocks, ...crypto]}
+              timeframe={timeframe}
+              setTimeframe={setTimeframe}
+              assets={assets}
               loading={loading}
               features={features}
               isPro={isPro}
@@ -558,6 +613,8 @@ function SidebarContent({
   setNotifSettings,
   enabledStrategies,
   setEnabledStrategies,
+  timeframe,
+  setTimeframe,
   assets,
   loading,
   features,
@@ -567,6 +624,8 @@ function SidebarContent({
   setNotifSettings: (v: NotificationSettings) => void;
   enabledStrategies: string[];
   setEnabledStrategies: (v: string[]) => void;
+  timeframe: TimeframeId;
+  setTimeframe: (v: TimeframeId) => void;
   assets: AssetData[];
   loading: boolean;
   features: PlanFeatures | null;
@@ -574,6 +633,13 @@ function SidebarContent({
 }) {
   return (
     <>
+      {/* Timeframe selector */}
+      <TimeframeSelector
+        value={timeframe}
+        onChange={setTimeframe}
+        allowedTimeframes={features?.timeframes}
+      />
+
       {/* Notifications — pro only */}
       {isPro ? (
         <NotificationPanel settings={notifSettings} onChange={setNotifSettings} />

@@ -9,10 +9,12 @@
 
 export type PlanId = 'free' | 'pro';
 
+export type TimeframeId = 'short' | 'medium' | 'long';
+
 export interface PlanFeatures {
   maxAssets: number;
-  allowedAssets: string[];          // empty = all assets
   strategies: string[];
+  timeframes: TimeframeId[];
   backtesting: boolean;
   sltp: boolean;
   levels: boolean;
@@ -21,13 +23,11 @@ export interface PlanFeatures {
   pollInterval: number;             // seconds
 }
 
-const ALL_ASSETS: string[] = [];    // empty means no restriction
-
 export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   free: {
     maxAssets: 3,
-    allowedAssets: ['AAPL', 'BTC-USD', 'ETH-USD'],
     strategies: ['rsi'],
+    timeframes: ['medium'],
     backtesting: false,
     sltp: false,
     levels: false,
@@ -37,8 +37,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   },
   pro: {
     maxAssets: 99,
-    allowedAssets: ALL_ASSETS,
     strategies: ['rsi', 'macd', 'bb', 'ma_cross'],
+    timeframes: ['short', 'medium', 'long'],
     backtesting: true,
     sltp: true,
     levels: true,

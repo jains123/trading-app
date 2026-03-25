@@ -31,6 +31,21 @@ export const Users: CollectionConfig = {
           data.plan = 'pro';
           data.trialEndsAt = trialEnd.toISOString();
           data.trialStartedAt = now.toISOString();
+          // Default watchlist — same as the original hardcoded list
+          data.watchlist = [
+            { symbol: 'AAPL', name: 'Apple', type: 'stock', stooqSymbol: 'AAPL.US' },
+            { symbol: 'NVDA', name: 'NVIDIA', type: 'stock', stooqSymbol: 'NVDA.US' },
+            { symbol: 'TSLA', name: 'Tesla', type: 'stock', stooqSymbol: 'TSLA.US' },
+            { symbol: 'MSFT', name: 'Microsoft', type: 'stock', stooqSymbol: 'MSFT.US' },
+            { symbol: 'GOOGL', name: 'Alphabet', type: 'stock', stooqSymbol: 'GOOGL.US' },
+            { symbol: 'AMZN', name: 'Amazon', type: 'stock', stooqSymbol: 'AMZN.US' },
+            { symbol: 'META', name: 'Meta', type: 'stock', stooqSymbol: 'META.US' },
+            { symbol: 'BTC-USD', name: 'Bitcoin', type: 'crypto', geckoId: 'bitcoin' },
+            { symbol: 'ETH-USD', name: 'Ethereum', type: 'crypto', geckoId: 'ethereum' },
+            { symbol: 'SOL-USD', name: 'Solana', type: 'crypto', geckoId: 'solana' },
+            { symbol: 'BNB-USD', name: 'BNB', type: 'crypto', geckoId: 'binancecoin' },
+            { symbol: 'XRP-USD', name: 'XRP', type: 'crypto', geckoId: 'ripple' },
+          ];
         }
         return data;
       },
@@ -69,6 +84,14 @@ export const Users: CollectionConfig = {
       admin: {
         position: 'sidebar',
         readOnly: true,
+      },
+    },
+    {
+      name: 'watchlist',
+      type: 'json',
+      defaultValue: [],
+      admin: {
+        description: 'User\'s custom asset watchlist as JSON array',
       },
     },
   ],

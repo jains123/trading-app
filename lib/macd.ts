@@ -56,11 +56,17 @@ export function calculateMACD(
   };
 }
 
-export function getMACDSignal(closes: number[]): { signal: SignalType; data: MACDResult | null } {
-  if (closes.length < 36) return { signal: 'LOADING', data: null };
+export function getMACDSignal(
+  closes: number[],
+  fastPeriod = 12,
+  slowPeriod = 26,
+  signalPeriod = 9,
+): { signal: SignalType; data: MACDResult | null } {
+  const minLen = slowPeriod + signalPeriod + 1;
+  if (closes.length < minLen) return { signal: 'LOADING', data: null };
 
-  const current = calculateMACD(closes);
-  const prev = calculateMACD(closes.slice(0, -1));
+  const current = calculateMACD(closes, fastPeriod, slowPeriod, signalPeriod);
+  const prev = calculateMACD(closes.slice(0, -1), fastPeriod, slowPeriod, signalPeriod);
 
   if (!current || !prev) return { signal: 'LOADING', data: null };
 
