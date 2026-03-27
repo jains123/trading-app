@@ -317,7 +317,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3]">
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <div className="w-full px-4 lg:px-6 xl:px-8 py-6 space-y-6">
         {/* Trial banner */}
         {planStatus?.trial.active && (
           <div className="bg-[#d29922]/10 border border-[#d29922]/30 rounded-lg px-4 py-3 flex items-center gap-3">
@@ -426,9 +426,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Main grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          <div className="xl:col-span-3 space-y-6">
+        {/* Main layout */}
+        <div className="flex gap-6">
+          <div className="flex-1 min-w-0 space-y-6">
             {/* Stocks */}
             <section>
               <h2 className="text-xs font-semibold text-[#8b949e] uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -437,13 +437,13 @@ export default function Dashboard() {
                 <span className="w-full h-px bg-[#30363d]" />
               </h2>
               {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
                   {Array.from({ length: 7 }).map((_, i) => (
                     <div key={i} className="bg-[#161b22] border border-[#30363d] rounded-xl h-40 animate-pulse" />
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
                   {stocks.map((a) => (
                     <AssetCard
                       key={a.symbol}
@@ -466,13 +466,13 @@ export default function Dashboard() {
                 <span className="w-full h-px bg-[#30363d]" />
               </h2>
               {loading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="bg-[#161b22] border border-[#30363d] rounded-xl h-40 animate-pulse" />
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
                   {crypto.map((a) => (
                     <AssetCard
                       key={a.symbol}
@@ -532,8 +532,8 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Sidebar — desktop only */}
-          <div className="hidden xl:block space-y-4">
+          {/* Sidebar — desktop only, sticky */}
+          <div className="hidden xl:block w-[320px] shrink-0 space-y-4 self-start sticky top-6">
             <SidebarContent
               notifSettings={notifSettings}
               setNotifSettings={setNotifSettings}
